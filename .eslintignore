@@ -1,0 +1,20 @@
+# Generated files
+lib/generated/
+prisma/generated/
+.next/
+node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Other generated/vendor files
+*.min.js
+vendor/
+
+# Environment files
+.env*
+
+# Log files
+*.log
