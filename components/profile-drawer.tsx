@@ -17,7 +17,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { Clock, Users, Target, CheckCircle, Circle, Eye } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/components/ui/toast"
-import { $Enums } from "@/lib/generated/prisma"
+import { $Enums } from "@prisma/client"
 
 
 

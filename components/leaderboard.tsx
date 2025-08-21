@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { LazyProfileDrawer } from "./lazy-profile-drawer"
 import { Progress } from "@/components/ui/progress"
 import { getOngoingChallenges } from "@/app/actions/challenges"
-import { $Enums } from "@/lib/generated/prisma"
+import { $Enums } from "@prisma/client"
 
 
 
