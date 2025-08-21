@@ -13,10 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { getCreatorDetails, markTaskCompleted, trackProfileVisit } from "@/app/actions/challenges"
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { ChallengeStatus } from "@/lib/generated/prisma"
+
 import { Clock, Users, Target, CheckCircle, Circle, Eye } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/components/ui/toast"
+import { $Enums } from "@/lib/generated/prisma"
+
+
 
 interface Creator {
   id: string
@@ -44,7 +47,7 @@ interface Challenge {
   title: string
   description: string
   category: string | null
-  status: ChallengeStatus
+  status: $Enums.ChallengeStatus
   startDate: Date
   endDate: Date | null
   duration: number
@@ -239,7 +242,7 @@ export function ProfileDrawer({ isOpen, onClose, creator }: ProfileDrawerProps) 
       
       setCreatorDetails({
         ...creatorDetails,
-        challenges: updatedChallenges
+        challenges: updatedChallenges as Challenge[]
       })
     }
 

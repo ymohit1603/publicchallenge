@@ -8,7 +8,11 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { LazyProfileDrawer } from "./lazy-profile-drawer"
 import { Progress } from "@/components/ui/progress"
 import { getOngoingChallenges } from "@/app/actions/challenges"
-import { ChallengeStatus } from "@/lib/generated/prisma"
+import { $Enums } from "@/lib/generated/prisma"
+
+
+
+
 
 interface Creator {
   id: string
@@ -25,7 +29,7 @@ interface Challenge {
   category: string | null
   duration: number
   durationUnit: string
-  status: ChallengeStatus
+  status: $Enums.ChallengeStatus
   startDate: Date
   endDate: Date | null
   creator: Creator
