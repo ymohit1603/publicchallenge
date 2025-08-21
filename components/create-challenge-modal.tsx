@@ -2,7 +2,10 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabase"
+import { useToast } from "@/components/ui/toast"
+import { createChallenge } from "@/app/actions/challenges"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +27,7 @@ interface Task {
   description: string
 }
 
-export function CreateChallengeModal({ isOpen, onClose }: CreateChallengeModalProps) {
+export function CreateChallengeModal({ isOpen, onClose, userId }: CreateChallengeModalProps) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -34,6 +37,17 @@ export function CreateChallengeModal({ isOpen, onClose }: CreateChallengeModalPr
   })
 
   const [tasks, setTasks] = useState<Task[]>([{ id: "1", title: "", description: "" }])
+  const [user, setUser] = useState<any>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser()
+      setUser(data.user)
+    }
+    getUser()
+  }, [isOpen])
 
   const categories = ["Fitness", "Education", "Wellness", "Language", "Productivity", "Creative", "Social", "Health"]
 
@@ -60,42 +74,101 @@ export function CreateChallengeModal({ isOpen, onClose }: CreateChallengeModalPr
     setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, [field]: value } : task)))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!user) {
+      toast({
+        type: "warning",
+        title: "Authentication Required",
+        description: "Please sign in to create a challenge"
+      })
+      return
+    }
 
     // Basic validation
     if (!formData.title || !formData.description || !formData.duration) {
-      alert("Please fill in all required fields")
+      toast({
+        type: "error",
+        title: "Missing Information",
+        description: "Please fill in all required fields"
+      })
+      return
+    }
+
+    // Duration validation
+    const durationValue = parseInt(formData.duration)
+    if (isNaN(durationValue) || durationValue <= 0) {
+      toast({
+        type: "error",
+        title: "Invalid Duration",
+        description: "Please enter a valid positive number for duration"
+      })
+      return
+    }
+
+    // Duration limits based on unit
+    const maxLimits = {
+      days: 365,    // Maximum 1 year
+      weeks: 52,    // Maximum 1 year 
+      months: 12    // Maximum 1 year
+    }
+
+    const currentMax = maxLimits[formData.durationUnit as keyof typeof maxLimits]
+    if (durationValue > currentMax) {
+      toast({
+        type: "error",
+        title: "Duration Too Long",
+        description: `Maximum allowed is ${currentMax} ${formData.durationUnit}. Please choose a shorter duration.`
+      })
       return
     }
 
     const validTasks = tasks.filter((task) => task.title.trim() !== "")
     if (validTasks.length === 0) {
-      alert("Please add at least one task")
+      toast({
+        type: "error",
+        title: "No Tasks Added",
+        description: "Please add at least one task to your challenge"
+      })
       return
     }
 
-    const challengeData = {
-      ...formData,
-      tasks: validTasks,
-      createdAt: new Date(),
+    setIsSubmitting(true)
+    try {
+      const challengeData = {
+        ...formData,
+        tasks: validTasks.map(({ title, description }) => ({ title, description })),
+        username: user.user_metadata?.user_name || user.email?.split('@')[0] || "user",
+      }
+
+      await createChallenge(challengeData)
+      toast({
+        type: "success",
+        title: "Challenge Created!",
+        description: "Your challenge has been created successfully and is now live."
+      })
+
+      // Reset form and close modal
+      setFormData({
+        title: "",
+        description: "",
+        duration: "",
+        durationUnit: "days",
+      })
+      setTasks([{ id: "1", title: "", description: "" }])
+      onClose()
+    } catch (error) {
+      console.error("Error creating challenge:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to create challenge. Please try again."
+      toast({
+        type: "error",
+        title: "Creation Failed",
+        description: errorMessage
+      })
+    } finally {
+      setIsSubmitting(false)
     }
-
-    console.log("[v0] Creating challenge:", challengeData)
-
-    // TODO: Submit to backend
-    alert("Challenge created successfully! (This would normally save to the database)")
-
-    // Reset form and close modal
-    setFormData({
-      title: "",
-      description: "",
-      // category: "",
-      duration: "",
-      durationUnit: "days",
-    })
-    setTasks([{ id: "1", title: "", description: "" }])
-    onClose()
   }
 
   const handleClose = () => {
@@ -173,10 +246,14 @@ export function CreateChallengeModal({ isOpen, onClose }: CreateChallengeModalPr
                   <Input
                     id="duration"
                     type="number"
-                    placeholder="30"
+                    placeholder="Enter number (e.g., 7 for 7 days)"
                     value={formData.duration}
                     onChange={(e) => handleInputChange("duration", e.target.value)}
                     min="1"
+                    max={
+                      formData.durationUnit === 'days' ? 365 :
+                      formData.durationUnit === 'weeks' ? 52 : 12
+                    }
                     required
                     className="flex-1"
                   />
@@ -194,6 +271,9 @@ export function CreateChallengeModal({ isOpen, onClose }: CreateChallengeModalPr
                     </SelectContent>
                   </Select>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Maximum: 365 days, 52 weeks, or 12 months (1 year limit)
+                </p>
               </div>
             </div>
           </div>
@@ -240,17 +320,19 @@ export function CreateChallengeModal({ isOpen, onClose }: CreateChallengeModalPr
               ))}
 
               <p className="text-sm text-muted-foreground">
-                Add daily or milestone tasks that you need to complete.
+                Add daily or milestone tasks that you need to complete. Duration will be calculated based on the number and unit you choose above.
               </p>
             </CardContent>
           </Card>
 
           {/* Submit Buttons */}
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">Create Challenge</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Creating..." : "Create Challenge"}
+            </Button>
           </div>
         </form>
       </DialogContent>
